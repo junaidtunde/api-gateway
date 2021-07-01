@@ -1,0 +1,6 @@
+src/database/migrations/*
+**/__mocks__/*
+/generated_ts_proto/*
+package-lock.json
+/public/*
+

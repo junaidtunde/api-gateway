@@ -1,0 +1,23 @@
+FROM autochek/base-images:alpine-node-grpc as build
+RUN mkdir -p /home/micro-api-gateway
+COPY . /home/micro-api-gateway
+WORKDIR /home/micro-api-gateway
+ADD docker-entrypoint.sh /usr/local/bin/
+RUN apk update && \
+    curl -L https://github.com/godolatunji/alpine-protoc-gen-swagger/raw/master/protoc-gen-swagger --output protoc-gen-swagger && \
+    chmod +x protoc-gen-swagger && \
+    npm --production=false install && \
+    npm run gen-proto && \
+    npm run build && \
+    echo $GCP_KEY > dist/google-service-account.json
+
+FROM node:12-alpine as deploy
+RUN mkdir -p /home/micro-api-gateway
+WORKDIR /home/micro-api-gateway
+COPY --from=build /home/micro-api-gateway/dist ./dist
+COPY --from=build /home/micro-api-gateway/node_modules ./node_modules
+COPY --from=build /home/micro-api-gateway/generated_ts_proto ./generated_ts_proto
+COPY --from=build /home/micro-api-gateway/IP2LOCATION-LITE-DB1.BIN .
+COPY --from=build /home/micro-api-gateway/package.json .
+EXPOSE 4040
+ENTRYPOINT ["npm", "run", "start:prod"]

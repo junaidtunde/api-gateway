@@ -1,0 +1,61 @@
+<!-- HTML for static distribution bundle build -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>Autochek Payments</title>
+  </head>
+  <body>
+    <h3>...Redirecting</h3>
+
+    <script>
+        function getParameterByName(name) {
+            var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+            return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+        }
+        var params = new URL(window.location.href).searchParams;
+        var status = (params.get('status') === 'successful'); // TODO - Add a or check here for paystack success types;
+        var origin = params.get('origin') || '';
+        var carId = params.get('car_id') || '';
+        var loanId = params.get('loan_id') || '';
+        var offerId = params.get('offer_id') || '';
+        var country = params.get('country') || 'ng';
+        var ANDROID_INTERFACE_ID = "com.autochek.buysalefixcars.Android";
+        var androidInterface = window[ANDROID_INTERFACE_ID];
+        if(androidInterface) {
+          // call when transaction is successful
+          if (status === 'true') {
+            var payload = JSON.stringify({
+                transactionReference: params.get('status') || '',
+                transactionId: params.get('transaction_id') || ''
+            })
+            androidInterface.onPaymentCompleted(payload);
+          }else{
+            // call when transaction fails
+            androidInterface.onPaymentFailed()
+          }
+        }else{
+        if(origin === 'loan') {
+            if (status === 'true') {
+            window.location.replace(`https://marketplace.staging.myautochek.com/${country}/cars-for-sale/success`);
+        }else {
+            window.location.replace(`https://marketplace.staging.myautochek.com/${country}/cars-for-sale/error?car_id=${carId}`);
+        }
+        } else if(origin === 'equity') {
+           if (status === 'true') {
+              window.location.replace(`https://marketplace.staging.myautochek.com/${country}/pay-equity-contribution/success`);
+        }else {
+            window.location.replace(`https://marketplace.staging.myautochek.com/${country}/pay-equity-contribution/error?loan_id=${loanId}`);
+        }
+        }
+        else {
+        if (status === 'true') {
+            window.location.replace(`https://marketplace.staging.myautochek.com/${country}/sell-a-car/success`);
+        }else{
+            window.location.replace(`https://marketplace.staging.myautochek.com/${country}/sell-a-car/error?car_id=${carId}`);
+        }
+        }
+        }
+    </script>
+   </body>
+  </html>

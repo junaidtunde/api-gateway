@@ -1,0 +1,123 @@
+pipeline {
+  agent none
+  environment {
+    HOME = '.'
+  }
+  stages {
+    stage('build') {
+      agent { 
+        docker { 
+          image 'autochek/base-images:alpine-node-grpc'
+          args '-u root'
+        }
+      }
+      steps {
+        sh '''
+          curl -L https://github.com/godolatunji/alpine-protoc-gen-swagger/raw/master/protoc-gen-swagger --output protoc-gen-swagger
+          chmod +x protoc-gen-swagger
+          npm install
+          npm run gen-proto
+          '''
+      }
+     }
+     
+     stage('build_image') {
+       agent {
+         docker {
+             image 'google/cloud-sdk'
+             args '-v /var/run/docker.sock:/var/run/docker.sock --network=host -u root'
+         }
+       }
+       steps {
+          sh '''
+            PROJECT_NAME="micro-api-gateway"
+
+            apt install gnupg -y
+
+            build_push () {
+              rm -rf dist generated_ts_proto node_modules
+              gcloud --quiet config set project $PROJECT_ID
+              gcloud --quiet config set compute/zone $GOOGLE_COMPUTE_ZONE
+              docker build -t $PROJECT_NAME --network=host .
+              docker tag $PROJECT_NAME eu.gcr.io/$PROJECT_ID/$PROJECT_NAME:latest
+              gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://eu.gcr.io
+              docker push eu.gcr.io/$PROJECT_ID/$PROJECT_NAME:latest
+            }
+
+            if [ $GIT_BRANCH = "master" ] ; then
+              echo "Deploying image to production repository"
+              PROJECT_ID=$GOOGLE_PROD_PROJECT_ID
+              echo $GCLOUD_PROD_DECRYPTION_KEY | gpg --batch --yes --passphrase-fd 0 helm/prod_key.json.gpg
+              gcloud auth activate-service-account --key-file=helm/prod_key.json
+              build_push
+            elif [ $GIT_BRANCH = "staging" ] ; then
+              echo "Deploying image to staging repository"
+              PROJECT_ID=$GOOGLE_STAGING_PROJECT_ID
+              echo $GCLOUD_STAGING_DECRYPTION_KEY | gpg --batch --yes --passphrase-fd 0 helm/staging-key.json.gpg
+              gcloud auth activate-service-account --key-file=helm/staging-key.json
+              build_push
+            fi
+
+            echo "No image deployment required"
+
+          '''
+       }
+     }
+     
+     stage('deploy') {
+       agent {
+         docker {
+           image 'autochek/helm:helm3.2'
+           args  '-v /root/.kube:/root/generatedconfig -v /usr/lib/google-cloud-sdk/:/usr/lib/google-cloud-sdk/ -u root'
+         }
+       }
+       steps {
+          sh '''
+            export CHARTNAME="micro-api-gateway"
+            export REPO_NAME="micro-api-gateway"
+
+            apk add --no-cache gnupg
+
+            if [ $GIT_BRANCH = "master" ] ; then
+              echo "Deploying to production cluster"
+              gcloud auth activate-service-account --key-file=helm/prod_key.json
+              ./deploy.sh $GIT_BRANCH $CHARTNAME $REPO_NAME
+            elif [ $GIT_BRANCH = "staging" ] ; then
+              echo "Deploying to staging cluster"
+              gcloud auth activate-service-account --key-file=helm/staging-key.json
+              ./deploy.sh $GIT_BRANCH $CHARTNAME $REPO_NAME
+            else
+              echo "No deployment necessary!"
+            fi
+
+          '''
+       }
+    }
+
+    stage('get_commit_details') {
+      agent any 
+      steps {
+        script {
+          env.GIT_COMMIT_MSG = sh (script: 'git log -1 --pretty=%B ${GIT_COMMIT}', returnStdout: true).trim()
+          env.GIT_AUTHOR = sh (script: 'git log -1 --pretty=%cn ${GIT_COMMIT}', returnStdout: true).trim()
+          env.currentEnv = sh (script: '[ ${GIT_BRANCH} = "master" ] && echo "production" || echo "staging"', returnStdout: true).trim()
+        }
+      }
+    }
+
+    stage ('Invoke_status_pipeline') {
+      agent any  
+      when {
+        expression { env.GIT_BRANCH  == 'staging' || env.GIT_BRANCH  == 'master' }
+      }  
+      steps {
+          build job: 'gke-status', parameters: [
+          string(name: 'serviceName', value: "micro-api-gateway"),
+          string(name: 'COMMIT_MSG', value: env.GIT_COMMIT_MSG),
+          string(name: 'AUTHOR', value: env.GIT_AUTHOR),
+          string(name: 'ENV', value: env.currentEnv)
+          ], propagate: false, wait: false
+      }
+    }
+  }
+}

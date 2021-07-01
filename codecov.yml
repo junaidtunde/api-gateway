@@ -1,0 +1,43 @@
+codecov:
+  token: "39d054ed-c78f-40e5-a1dc-c10cccba3ff9"
+  bot: "codecov-io"
+  require_ci_to_pass: yes
+  notify:
+    wait_for_ci: yes
+
+coverage:
+  status:
+    project:
+      default:
+        # basic
+        target: 70%
+        threshold: 0%
+        base: auto 
+        flags: 
+          - unit
+        paths: 
+          - "src"
+       # advanced
+        # branches: 
+        #   - master
+        if_not_found: success
+        if_ci_failed: error
+        informational: False
+        only_pulls: false
+    patch:
+      default:
+        # basic
+        target: 70%
+        threshold: 0%
+        base: auto 
+        # advanced
+        # branches: 
+        #   - master
+        if_no_uploads: error
+        if_not_found: success
+        if_ci_failed: error
+        only_pulls: false
+        flags: 
+          - "unit"
+        paths: 
+          - "src"

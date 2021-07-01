@@ -1,0 +1,196 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Autochek API",
+    "version": "1.0.0",
+    "description": "This is the complete api documentation for Autochek microservices, <br> <em>this documentation only shows the endpoint exposed via rest</em>",
+    "license": {
+      "name": "Copyright of Autochek"
+    }
+  },
+  "consumes": ["application/json"],
+  "produces": ["application/json"],
+  "paths": {
+    "/get-my-location": {
+      "get": {
+        "summary": "*\n This endpoint returns the country code of the user based on ip address",
+        "operationId": "HomeService_getMyLocation",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "number",
+                  "example": 162
+                },
+                "name": {
+                  "type": "string",
+                  "example": "Nigeria"
+                },
+                "code": {
+                  "type": "string",
+                  "example": "NG"
+                },
+                "currency": {
+                  "type": "string",
+                  "example": "NGN"
+                },
+                "region": {
+                  "type": "string",
+                  "example": "Lagos"
+                },
+                "city": {
+                  "type": "string",
+                  "example": "Lagos"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["HomeService"]
+      }
+    },
+    "/document/{filename}": {
+      "get": {
+        "summary": "*\n Get signed Url of filename from private storage. This funtion returnes a signed url that will expire in one hour",
+        "operationId": "HomeService_getSignedUrl",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "signed_url": {
+                  "type": "string",
+                  "example": "https://storage.googleapis.com/autochek-staging-private/c5108dcb-d27b-4724-b578-23a6f74b5d4e-milestone_plan.xlsx?GoogleAccessId=staging-storage-admin%40applied-oxygen-284218.iam.gserviceaccount.com&Expires=1597840242&Signature=AcDa0gEzH%2FjYRfRVvbglrUXpO%2B7jPKHnV3Z7rYL32Y2Y%2FxrTxgZO5UtdsMJTOUIKZVD4zDvEnVLn4CmLPSOrR%2FhWYfyNl5Zh4VoFHKgCkqIZo4xPUDsLeSKcn6RPrxXF12J9JB9pVn25iSbFd34yW3PZv5dUJBBDPhvOWv4GcmsIwl7vG0VkT5IUAFYD3R3YNd6ZQ88AHuxv5Q49AekwC60%2FDo68%2FzkuGFaTI4O%2FtlO7bFLPusHAA0fQdtj0W5SsBJFWWa3jBlbz0f9AE2cplKvqGLPcWQRFcCS6vzHk89E4BGwLK5z9ij8S2aZ3G6Thk1YKB4wbop2EMHJlx1gobg%3D%3D"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["HomeService"]
+      }
+    },
+    "/document/upload": {
+      "post": {
+        "summary": "*\n Upload a document/image/video to autochek public or private storage buckets",
+        "operationId": "HomeService_postUploadDocument",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "originalName": {
+                  "type": "string",
+                  "example": "12424.jpg"
+                },
+                "tempFilePath": {
+                  "type": "string",
+                  "example": "/tmp/229ce98c-d330-46df-b311-7d741f16ae97-12424.jpg"
+                },
+                "mimetype": {
+                  "type": "string",
+                  "example": "image/jpeg"
+                },
+                "public": {
+                  "type": "boolean",
+                  "example": false
+                },
+                "name": {
+                  "type": "string",
+                  "example": "229ce98c-d330-46df-b311-7d741f16ae97-12424.jpg",
+                  "description": "name the file is saved as in the bucket"
+                },
+                "url": {
+                  "type": "string",
+                  "example": "https://storage.googleapis.com/autochek-staging-private/229ce98c-d330-46df-b311-7d741f16ae97-12424.jpg"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "file": {
+                  "type": "string",
+                  "example": "this is not a string. The file data to be uploaded",
+                  "description": "the file object to be uploaded"
+                },
+                "public": {
+                  "type": "boolean",
+                  "description": "to upload in a public or private bucket"
+                }
+              }
+            }
+          }
+        ],
+        "tags": ["HomeService"]
+      }
+    },
+    "/image/upload": {
+      "post": {
+        "summary": "*\n Upload an image to autochek publit.io storage and also watermarks the image",
+        "operationId": "HomeService_postImage",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "originalName": {
+                  "type": "string",
+                  "example": "12424.jpg"
+                },
+                "tempFilePath": {
+                  "type": "string",
+                  "example": "/tmp/229ce98c-d330-46df-b311-7d741f16ae97-12424.jpg"
+                },
+                "mimetype": {
+                  "type": "string",
+                  "example": "image/jpeg"
+                },
+                "name": {
+                  "type": "string",
+                  "example": "229ce98c-d330-46df-b311-7d741f16ae97-12424.jpg",
+                  "description": "name the file is saved as in the bucket"
+                },
+                "url": {
+                  "type": "string",
+                  "example": "https://media.autochek.africa/file/fff5fef7-30f6-4a3f-b322-40911ada2462-IMG.jpg"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "file": {
+                  "type": "string",
+                  "example": "this is not a string. The file data to be uploaded",
+                  "description": "the file object to be uploaded"
+                }
+              }
+            }
+          }
+        ],
+        "tags": ["HomeService"]
+      }
+    }
+  },
+  "definitions": {}
+}

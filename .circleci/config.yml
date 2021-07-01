@@ -1,0 +1,103 @@
+version: 2
+jobs:
+  build:
+    working_directory: ~/micro-api-gateway
+    docker:
+            - image: circleci/node
+    steps:
+      - checkout
+
+      - run:
+          name: Install dependencies
+          command: |
+                  npm install
+                  npm run gen-proto
+                  npm run build
+      - persist_to_workspace:
+          root: ./
+          paths:
+            - ./node_modules
+  build_image:
+    docker:
+      - image: google/cloud-sdk
+    steps:
+      - checkout
+      - attach_workspace:
+          # Must be absolute path or relative path from working_directory
+          at: ./
+      - setup_remote_docker
+      - run:
+          name: Build and push image
+          command: |
+            if [[ ((`echo $CIRCLE_BRANCH | grep -c "master"` > 0)) ]]; then
+              echo "Deploying image to production repository"
+              PROJECT_ID=${GOOGLE_PROD_PROJECT_ID}
+              gcloud auth activate-service-account --key-file=/root/project/helm/prod_key.json
+            elif [[ ((`echo $CIRCLE_BRANCH | grep -c "staging"` > 0)) ]]; then
+              echo "Deploying image to staging repository"
+              PROJECT_ID=${GOOGLE_STAGING_PROJECT_ID}
+              gcloud auth activate-service-account --key-file=/root/project/helm/staging_key.json
+            fi
+            
+            echo "No image deployed required"
+
+            apt-get install -qq -y gettext
+            gcloud --quiet config set project ${PROJECT_ID}
+            gcloud --quiet config set compute/zone ${GOOGLE_COMPUTE_ZONE}
+
+            docker build -t ${PROJECT_NAME} .
+            docker tag ${PROJECT_NAME} eu.gcr.io/${PROJECT_ID}/${PROJECT_NAME}:latest
+            gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://eu.gcr.io
+            docker push eu.gcr.io/${PROJECT_ID}/${PROJECT_NAME}:latest
+
+  deploy:
+    docker:
+      - image: ubuntu
+
+    working_directory: ~/micro-api-gateway
+
+    steps:
+      - checkout
+      - setup_remote_docker
+      - attach_workspace:
+          # Must be absolute path or relative path from working_directory
+          at: ./
+      - run:
+          name: Deploy to Kubernetes
+          command: |
+            export CHARTNAME="micro-api-gateway"
+            echo 'Context >>> $CIRCLE_BRANCH'
+            if [[ ((`echo $CIRCLE_BRANCH | grep -c "master"` > 0)) ]]; then
+              echo "Deploying to production cluster"
+              ./deploy.sh $CIRCLE_BRANCH $CHARTNAME
+            elif [[ ((`echo $CIRCLE_BRANCH | grep -c "staging"` > 0)) ]]; then
+              echo "Deploying image to staging cluster"
+              ./deploy.sh $CIRCLE_BRANCH $CHARTNAME
+            fi
+              echo "No image deployed kubernates required"
+              exit
+          environment:
+            - CHART_DIR:  helm-charts/micro-api-gateway
+            - HELM_VERSION: 2.14.3
+workflows:
+  version: 2
+  pipeline:
+    jobs:
+    - build
+    # - build_image:
+    #     requires:
+    #       - build
+    #       # - test
+    #     filters:
+    #       branches:
+    #         only:
+    #           - staging
+    #           - master
+    # - deploy:
+    #     requires:
+    #       - build_image
+    #     filters:
+    #       branches:
+    #         only:
+    #           - staging
+    #           - master
